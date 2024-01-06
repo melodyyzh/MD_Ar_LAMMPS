@@ -1,0 +1,95 @@
+##############################################
+# Specify user-defined simulation parameters
+##############################################
+
+# Note: This file is configured to create a system of 500 atoms (a 4x4x4 fcc lattice)
+
+variable temperature equal 144    # K 
+variable Tdamp       equal 100    # damping constant
+variable rhostar     equal 0.1    # Reduced density
+variable nrepl       equal 5      # Number of replicates for initial strucure generation
+variable sigma       equal 3.4    # Angstrom
+variable epsilon     equal 120    # This is epsilon/kB, in units K
+variable iofrq       equal 50    # Frequency to output simulation info
+variable timesteps   equal 100000 # Number of timesteps for simulation
+variable timestep    equal 0.5    # timestep for the simulation (dt)
+variable atmtyp      equal Ar     # Atom type (chemical symbol)
+variable atmmass     equal 39.948 # Atomic mass
+
+##############################################
+# Specify high-level simulation style
+##############################################
+
+units        real                      # Specify units to use
+atom_style   atomic                    # Only store info on atom coords and type - no bonded info
+atom_modify  sort 0 0.0                # Maintain atom ordering when printing information
+atom_modify  map array                 # Need to maintain ordering
+neighbor     0.2 bin                   # Specify neighborlist parameters
+neigh_modify delay 0 every 1 check yes # More neighborlist parameters
+
+##############################################
+# Set up simulation box with particle velocities for a target temperature
+##############################################
+
+# Compute box dimensions needed to achieve target density
+# FCC has 4 atoms per UC. 4*5^3 = 500
+
+variable natoms equal 4*${nrepl}^3 
+variable density equal ${rhostar}/(${sigma}^3)      # Compute target density in atoms per Ang cubed
+variable boxlen  equal (${natoms}/${density})^(1/3) # Use the computed density to determine target box lengt
+variable uc      equal ${boxlen}/${nrepl}
+
+# Create a box of atoms at the target density, place atoms on a grid in the box
+
+lattice fcc ${uc}                               # Set the unit cell size for a fcc lattice (4 atoms)
+region	box block 0 1 0 1 0 1 units lattice     # Create an empty single fcc unit cell
+create_box   1 box                              # Use that empty cell to define simulation cell
+create_atoms 1 box                              # Place atoms on lattice points
+replicate    ${nrepl} ${nrepl} ${nrepl}         # Replicate to get target box size
+
+
+# Specify initial velocity of atoms according to a Gaussian distribution
+# Remove net linear and angular momentum
+
+mass        1 ${atmmass} #   define mass of atom type 1
+velocity    all create ${temperature} 87287 dist gaussian mom yes rot yes
+
+##############################################
+# Define the interaction model
+##############################################
+
+# Specify interaction potential: LJ with a cutoff of 4 * sigma
+# Specify parameters between atoms of type 1 with an atom of type 1
+# Conversion factor puts energies in units of kcal/mol
+
+variable rcut    equal 4*${sigma}
+variable epskcal equal ${epsilon}*0.0019872  # convert epsilon to real unit via Boltzman constant in kcal/mol-K
+
+pair_style  lj/cut ${rcut}
+pair_coeff  1 1 ${epskcal} ${sigma}
+timestep    ${timestep} # Time integration step in fs
+
+##############################################
+# Specify time integration/thermodynamic constraint scheme
+##############################################
+
+#fix         1 all nve # Apply fix 1: time integraton for the NVE ensemble to all atoms
+fix 1 all nvt temp ${temperature} ${temperature} ${Tdamp}
+
+##############################################
+# Specify the requested output
+##############################################
+
+thermo_style custom step pe ke etotal econserve temp press density
+thermo ${iofrq}         # report instantaneous thermo values every 2000 steps
+thermo_modify norm yes   # normalize thermo properties by number of atoms (yes or no)
+
+dump            1 all custom ${iofrq} traj_0.1.lammpstrj id type element xu yu zu vx vy vz
+dump_modify     1 element Ar sort id
+
+
+##############################################
+# Run the simulation for several steps
+##############################################
+
+run ${timesteps}
