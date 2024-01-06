@@ -8,8 +8,8 @@ This project focus on the NVT simulation of Argon particles in a FCC lattice usi
 - `walltime.sh`: a shell script that extracts the walltime of each simulation for analysis and optimization purposes
 
 ## Build & Execute
-Refer to the `run_job.cmd` file for information about the required modules.
+Refer to the `run_job.cmd` file for information about the required modules
 
 ## Credit
 - This project was developed as part of the ChE696: Simulation of Condensed Matter System
-- Initial code templates were provided by our instructor, Dr. Rebecca Lindsey.
+- Initial code templates were provided by our instructor, Dr. Rebecca Lindsey
